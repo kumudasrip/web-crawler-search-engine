@@ -7,3 +7,4 @@ sqlalchemy
 redis
 pydantic
 python-dotenv
+pytest
