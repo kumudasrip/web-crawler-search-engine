@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Analytics } from '../types';
+import { Analytics, CrawlerMetrics } from '../types';
 import apiService from '../services/api';
 import { formatNumber } from '../utils/formatting';
 
 const AnalyticsDashboard: React.FC = () => {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [crawlerMetrics, setCrawlerMetrics] = useState<CrawlerMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -14,6 +15,13 @@ const AnalyticsDashboard: React.FC = () => {
         setLoading(true);
         const data = await apiService.getAnalytics();
         setAnalytics(data);
+        // fetch crawler metrics too
+        try {
+          const cm = await apiService.getCrawlerMetrics();
+          setCrawlerMetrics(cm);
+        } catch (e) {
+          // ignore crawler metrics failures
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load analytics');
       } finally {
@@ -47,11 +55,19 @@ const AnalyticsDashboard: React.FC = () => {
     { label: 'Index Size', value: analytics.index_size, icon: '📊' },
   ];
 
+  const crawlerMetricsList = crawlerMetrics
+    ? [
+        { label: 'Queue Size', value: crawlerMetrics.queue_size, icon: '📥' },
+        { label: 'Failed Jobs', value: crawlerMetrics.failed_count, icon: '⚠️' },
+        { label: 'Pages Crawled (RL)', value: crawlerMetrics.pages_crawled, icon: '🏁' },
+      ]
+    : [];
+
   return (
     <div className="p-6 bg-white rounded-lg shadow-md">
       <h2 className="text-2xl font-bold mb-6">Analytics Dashboard</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {metrics.map((metric) => (
+        {metrics.concat(crawlerMetricsList).map((metric) => (
           <div key={metric.label} className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg">
             <div className="flex items-center justify-between">
               <div>

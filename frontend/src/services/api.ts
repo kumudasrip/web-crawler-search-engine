@@ -1,4 +1,4 @@
-import { SearchResponse, PageContent, Analytics, CrawlStatus, CrawlRequest, CrawlResponse } from '../types';
+import { SearchResponse, PageContent, Analytics, CrawlStatus, CrawlRequest, CrawlResponse, CrawlerMetrics } from '../types';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
@@ -56,6 +56,19 @@ class ApiService {
 
     if (!response.ok) {
       throw new Error(`Failed to fetch crawl status: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async getCrawlerMetrics(): Promise<CrawlerMetrics> {
+    const response = await fetch(`${API_BASE_URL}/crawler/metrics`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch crawler metrics: ${response.statusText}`);
     }
 
     return response.json();

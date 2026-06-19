@@ -1,0 +1,6 @@
+redis>=4.5.0
+rq>=1.1.0
+# Pin rq-scheduler to latest compatible release available on PyPI
+rq-scheduler==0.14.0
+uvicorn>=0.22.0
+fastapi>=0.95.0

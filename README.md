@@ -38,3 +38,33 @@ A production-quality portfolio project for building a distributed web crawler, d
 3. Create search API and worker queue integration.
 4. Scaffold frontend UI with search and analytics pages.
 5. Add documentation for architecture, API, and deployment.
+
+## Phase 7 & 8 — Redis Workers and Analytics
+
+This repository now includes:
+
+- A Redis/RQ-based distributed crawling worker implementation (`backend/app/worker`).
+- API endpoints to enqueue crawl jobs and read crawler metrics: `/api/crawler/enqueue`, `/api/crawler/metrics`, `/api/crawler/failed`.
+- A scheduler helper (`rq-scheduler`) for recurring enqueues.
+- Frontend analytics enhancements to show queue size, failed jobs, and popular queries.
+
+Quick run:
+
+```bash
+# Start Redis
+docker run -p 6379:6379 -d redis:7
+
+# Install Python deps (in backend venv)
+pip install -r backend/requirements.txt
+
+# Start FastAPI backend
+uvicorn backend.app.main:app --reload --port 8000
+
+# Start one or more workers (in separate terminals)
+python -m backend.app.worker.start_worker
+
+# Start frontend
+cd frontend && npm install && npm run dev
+```
+
+See `docs/PHASE7_REDIS.md` and `docs/PHASE8_ANALYTICS.md` for architecture, scaling notes, and operational guidance.
