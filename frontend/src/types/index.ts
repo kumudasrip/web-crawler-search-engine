@@ -34,6 +34,18 @@ export interface Analytics {
   index_size: number;
 }
 
+export interface PopularQuery {
+  query: string;
+  count: number;
+}
+
+export interface CrawlerMetrics {
+  queue_size: number;
+  failed_count: number;
+  pages_crawled: number;
+  popular_queries: PopularQuery[];
+}
+
 // Crawl job types
 export interface CrawlStatus {
   job_id: number;

@@ -155,3 +155,77 @@ def start_crawl(body: CrawlRequestBody, db: Session = Depends(get_db)) -> dict:
     except Exception as exc:
         logger.exception('Crawl error: %s', exc)
         raise HTTPException(status_code=500, detail='Crawl failed') from exc
+
+
+# --- Redis / Worker endpoints -------------------------------------------------
+@router.post('/crawler/enqueue')
+def enqueue_urls(seed_urls: list[str], db: Session = Depends(get_db)) -> dict:
+    """Enqueue seed URLs into the Redis crawler queue for distributed workers."""
+    try:
+        from redis import Redis
+        from rq import Queue, Retry
+
+        redis_url = getattr(__import__('os'), 'environ').get('REDIS_URL', 'redis://localhost:6379/0')
+        conn = Redis.from_url(redis_url)
+        q = Queue('crawler', connection=conn)
+
+        job_ids = []
+        for url in seed_urls:
+            # enqueue the worker task by import path so remote workers can execute it
+            job = q.enqueue('backend.app.worker.tasks.crawl_job', url, retry=Retry(max=3))
+            job_ids.append(job.id)
+
+        return {'enqueued': len(job_ids), 'job_ids': job_ids}
+    except Exception as exc:
+        logger.exception('Enqueue error: %s', exc)
+        raise HTTPException(status_code=500, detail='Failed to enqueue URLs') from exc
+
+
+@router.get('/crawler/metrics')
+def crawler_metrics(db: Session = Depends(get_db)) -> dict:
+    """Return crawler-related metrics: queue size, failed jobs, pages crawled, throughput."""
+    try:
+        from redis import Redis
+        from rq import Queue, FailedJobRegistry
+
+        redis_url = getattr(__import__('os'), 'environ').get('REDIS_URL', 'redis://localhost:6379/0')
+        conn = Redis.from_url(redis_url)
+        q = Queue('crawler', connection=conn)
+        registry = FailedJobRegistry('crawler', connection=conn)
+
+        analytics_service = AnalyticsService(db)
+        core_metrics = analytics_service.get_analytics()
+
+        # Basic Redis/RQ metrics
+        queue_size = q.count
+        failed_count = len(registry)
+
+        # Optionally include popular queries and throughput
+        popular = getattr(analytics_service, 'get_popular_queries', lambda n=5: [])(5)
+
+        return {
+            'queue_size': queue_size,
+            'failed_count': failed_count,
+            'pages_crawled': core_metrics.get('pages_crawled', 0),
+            'popular_queries': popular,
+        }
+    except Exception as exc:
+        logger.exception('Metrics error: %s', exc)
+        raise HTTPException(status_code=500, detail='Failed to fetch crawler metrics') from exc
+
+
+@router.get('/crawler/failed')
+def crawler_failed(db: Session = Depends(get_db)) -> dict:
+    """List failed jobs from RQ failed job registry (IDs only)."""
+    try:
+        from redis import Redis
+        from rq import FailedJobRegistry
+
+        redis_url = getattr(__import__('os'), 'environ').get('REDIS_URL', 'redis://localhost:6379/0')
+        conn = Redis.from_url(redis_url)
+        registry = FailedJobRegistry('crawler', connection=conn)
+        failed = list(registry.get_job_ids())
+        return {'failed_job_ids': failed, 'count': len(failed)}
+    except Exception as exc:
+        logger.exception('Failed registry error: %s', exc)
+        raise HTTPException(status_code=500, detail='Failed to fetch failed jobs') from exc
