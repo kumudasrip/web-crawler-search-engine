@@ -14,6 +14,7 @@ class SearchService:
     def __init__(self, db: Session, indexer_service: IndexerService) -> None:
         self.db = db
         self.indexer_service = indexer_service
+        self.indexer_service.rebuild_index_from_db()
         self.ranker = TfIdfRanker(indexer_service.get_index())
         self.logger = logging.getLogger(__name__)
 
@@ -43,8 +44,8 @@ class SearchService:
         if not page_ids:
             return [], 0
 
-        # Rank results
-        ranked = self.ranker.rank_results(query_terms, list(page_ids))
+        # Rank results using TF-IDF and retrieve only the top window needed for pagination
+        ranked = self.ranker.rank_results(query_terms, list(page_ids), top_k=offset + limit)
 
         # Paginate
         paginated = ranked[offset : offset + limit]

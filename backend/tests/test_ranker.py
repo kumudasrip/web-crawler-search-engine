@@ -41,3 +41,32 @@ def test_tf_idf_rare_term():
     idf_rare = ranker.compute_idf('rare')
     idf_common = ranker.compute_idf('common')
     assert idf_rare > idf_common
+
+
+def test_rank_results_with_multiple_query_terms():
+    index = InvertedIndex()
+    index.index_document(1, ['python', 'machine', 'learning'])
+    index.index_document(2, ['python', 'java', 'programming'])
+    index.index_document(3, ['python', 'machine', 'learning', 'learning'])
+
+    ranker = TfIdfRanker(index)
+    ranked = ranker.rank_results(['python', 'learning'], [1, 2, 3])
+
+    assert ranked[0][0] == 3
+    assert ranked[1][0] == 1
+    assert ranked[2][0] == 2
+    assert ranked[0][1] > ranked[1][1]
+
+
+def test_rank_results_top_k_retrieval():
+    index = InvertedIndex()
+    index.index_document(1, ['python', 'data'])
+    index.index_document(2, ['python', 'python', 'data', 'science'])
+    index.index_document(3, ['data', 'science'])
+
+    ranker = TfIdfRanker(index)
+    top_two = ranker.rank_results(['python', 'data'], [1, 2, 3], top_k=2)
+
+    assert len(top_two) == 2
+    assert top_two[0][0] == 2
+    assert top_two[1][0] == 1
