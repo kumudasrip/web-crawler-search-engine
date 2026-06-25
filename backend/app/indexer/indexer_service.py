@@ -70,13 +70,26 @@ class IndexerService:
         self.db.flush()
 
     def rebuild_index_from_db(self) -> None:
-        """Rebuild the entire in-memory index from the database."""
+        """Rebuild the entire in-memory index from the database without mutating stored term data."""
         self.index = InvertedIndex()
         pages = self.db.query(PageModel).all()
 
         for page in pages:
-            if page.content:
-                self.index_page(page.id, page.title or '', page.content)
+            if not page.content:
+                continue
+
+            if getattr(page, 'terms', None):
+                tokens = []
+                for page_term in page.terms:
+                    tokens.extend([page_term.term] * page_term.frequency)
+                self.index.index_document(page.id, tokens)
+            else:
+                # Fallback if term records are unavailable
+                full_text = f"{page.title or ''} {page.title or ''} {page.content}"
+                tokens = self.tokenizer.tokenize(full_text)
+                filtered_tokens = self.stop_word_manager.filter_stop_words(tokens)
+                if filtered_tokens:
+                    self.index.index_document(page.id, filtered_tokens)
 
         self.logger.info('Rebuilt index with %d documents and %d unique terms', self.index.document_count(), self.index.size())
 
